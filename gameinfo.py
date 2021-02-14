@@ -5,17 +5,52 @@ from igdb.wrapper import IGDBWrapper
 
 
 class GameInfo(object):
-    def __init__(self, twitch_client_id=None, twitch_client_secret=None, source_name=None):
+    IGDB_REGION_ENUM = {
+        1: 'EU',
+        2: 'NA',
+        3: 'AU',
+        4: 'NZ',
+        5: 'JP',
+        6: 'CN',
+        7: 'Asia',
+        8: 'World'        
+    }
+
+    def __init__(self, twitch_client_id=None, twitch_client_secret=None, twitch_username=None, source_name=None):
         self.source_name = source_name
         self.twitch_client_id = twitch_client_id
         self.twitch_client_secret = twitch_client_secret
-        #TODO: code to authenticate to Twitch API, get current game name, and save auth token goes here
+        self.twitch_username = twitch_username
+        self.twitch_auth_token = None
+        self.broadcast_id = None
+        self.game_name = None
+        
+    def twitch_api_connect(self):
+        """ authenticate against the Twitch API and set object properties """
+        if (self.twitch_client_id is not None) or (self.twitch_client_secret is not None):
+            twitch = Twitch(self.twitch_client_id, self.twitch_client_secret)
+            try:
+                twitch.authenticate_app([])
+            except:
+                # if something goes wrong, at a minimum we want to unset the auth token
+                # so that the script doesn't keep trying to fire unauthorized requests
+                # against IGDB.
+                self.twitch_auth_token = None
+            
+            # pull auth token, broadcast id, and game name from Twitch API
+            self.twitch_auth_token = twitch.get_app_token()
+            self.broadcast_id = twitch.get_users(logins=[self.twitch_username])['data'][0]['id']
+            self.game_name = twitch.get_channel_information(self.broadcast_id)['data'][0]['game_name']
 
-    def update_content(self):
-        #TODO: code to pull IGDB data and write .html file goes here
+        else:
+            self.twitch_auth_token = None
+
+    def get_current_game(self):
+        """ pull game information from IGDB and update temp HTML file for browser source """
         pass
 
 
+# create local instance of GameInfo
 gi = GameInfo()
 
 def script_description():
