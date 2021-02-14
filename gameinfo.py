@@ -3,6 +3,21 @@ import obspython as obs
 from twitchAPI.twitch import Twitch
 from igdb.wrapper import IGDBWrapper
 
+
+class GameInfo(object):
+    def __init__(self, twitch_client_id=None, twitch_client_secret=None, source_name=None):
+        self.source_name = source_name
+        self.twitch_client_id = twitch_client_id
+        self.twitch_client_secret = twitch_client_secret
+        #TODO: code to authenticate to Twitch API, get current game name, and save auth token goes here
+
+    def update_content(self):
+        #TODO: code to pull IGDB data and write .html file goes here
+        pass
+
+
+gi = GameInfo()
+
 def script_description():
     return """Populate local browser source with game information from IGDB.
     
