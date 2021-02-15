@@ -1,5 +1,8 @@
 import obspython as obs
 
+import json
+import datetime as dt
+
 from twitchAPI.twitch import Twitch
 from igdb.wrapper import IGDBWrapper
 
@@ -16,7 +19,7 @@ class GameInfo(object):
         8: 'World'        
     }
 
-    def __init__(self, twitch_client_id=None, twitch_client_secret=None, twitch_username=None, source_name=None):
+    def __init__(self, twitch_client_id=None, twitch_client_secret=None, twitch_username=None, source_name=None, game_override=None):
         self.source_name = source_name
         self.twitch_client_id = twitch_client_id
         self.twitch_client_secret = twitch_client_secret
@@ -24,6 +27,8 @@ class GameInfo(object):
         self.twitch_auth_token = None
         self.broadcast_id = None
         self.game_name = None
+        self.game_override = game_override
+        self.game_info = None
         
     def twitch_api_connect(self):
         """ authenticate against the Twitch API and set object properties """
@@ -46,7 +51,94 @@ class GameInfo(object):
             self.twitch_auth_token = None
 
     def get_current_game(self):
-        """ pull game information from IGDB and update temp HTML file for browser source """
+        """ fetch game info from IGDB """
+        byte_array = None
+
+        if self.twitch_auth_token is not None:
+            # If we have an auth token, attempt to authenticate to the IGDB API.
+            try:
+                igdb = IGDBWrapper(client_id=self.twitch_client_id, auth_token=self.twitch_auth_token)
+            except:
+                # If IGDB shits the bed, set self.game_info to None
+                self.game_info = None
+
+            if self.game_override is not None:
+                # search for game info based on stub supplied by user
+                byte_array = igdb.api_request(
+                    'games',
+                    'fields id, name, platforms.abbreviation, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, cover.image_id, release_dates.date, release_dates.region, release_dates.platform.abbreviation; where name = "{}";'.format(self.game_override)
+                )                
+            else:
+                # search for game based on user's current Twitch category
+                byte_array = igdb.api_request(
+                    'games',
+                    'fields id, name, platforms.abbreviation, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, cover.image_id, release_dates.date, release_dates.region, release_dates.platform.abbreviation; where name = "{}";'.format(self.game_name)
+                )            
+
+            # convert the byte array returned by the IGDB wrapper into something useful
+            game_info = json.loads(byte_array)
+
+            # if game_info is an empty list, we don't need to do anything
+            if len(game_info) > 0:
+
+                # Set the game name
+                game_name = game_info[0]['name']
+
+                # Set the cover image
+                game_cover = "https://images.igdb.com/igdb/image/upload/t_cover_small/{}.jpg".format(game_info[0]['cover']['image_id'])
+
+
+                # Release Dates: we only want the oldest dates from each region
+                release_dates_sorted = sorted(game_info[0]['release_dates'], key = lambda i: i['date'])
+                release_dates_filtered = []
+                for release_date in release_dates_sorted:
+                    if not any(i.get('region', False) == release_date['region'] for i in release_dates_filtered):
+                        release_dates_filtered.append(release_date)
+
+                release_dates_final = []
+                for release_date in release_dates_filtered:
+                    tmp = {
+                        'date': dt.datetime.utcfromtimestamp(release_date['date']).strftime("%Y-%m"),
+                        'region': self.IGDB_REGION_ENUM[release_date['region']]
+                    }
+                    release_dates_final.append(tmp)
+
+                # Platforms: filter out anything that doesn't have a proper abbreviation
+                platforms_filtered = []
+                for platform in game_info[0]['platforms']:
+                    if 'abbreviation' in platform:
+                        platforms_filtered.append(platform['abbreviation'])
+
+                platforms_filtered.sort()
+
+                # Devevelopers & publishers
+                developers_filtered = []
+                for developer in game_info[0]['involved_companies']:
+                    if developer['developer'] == True:
+                        developers_filtered.append(developer['company']['name'])
+
+                publishers_filtered = []
+                for publisher in game_info[0]['involved_companies']:
+                    if publisher['publisher'] == True:
+                        publishers_filtered.append(publisher['company']['name'])
+
+                self.game_info = {
+                    'game_name':        game_name,
+                    'game_cover':       game_cover,
+                    'release_dates':    release_dates_final,
+                    'platforms':        ", ".join(platforms_filtered),
+                    'developers':       developers_filtered,
+                    'publishers':       publishers_filtered
+                }
+
+            else:
+                self.game_info = None
+
+        else:
+            self.game_info = None
+
+    def generate_html(self):
+        """ parse the template and write it to disk """
         pass
 
 
