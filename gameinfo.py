@@ -3,9 +3,37 @@ import obspython as obs
 import json
 import datetime as dt
 
+from jinja2 import Environment, FunctionLoader, select_autoescape
+
 from twitchAPI.twitch import Twitch
 from igdb.wrapper import IGDBWrapper
 
+
+default_template = """
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>gameinfo template</title>
+        <style>
+            /* put your CSS here */
+        </style>
+    </head>
+    <body>
+        <!-- see https://jinja.palletsprojects.com/en/2.11.x/templates/ for more info -->
+        <p>{{ game_info.game_name }}</p>
+        <img src="{{ game_info.game_cover }}" />
+        <p>Platforms: {{ game_info.platforms }}</p>
+        <p>Developers:</p>
+        {% for developer in game_info.developers %}
+        <p>{{ developer }}</p>
+        {% endfor %}
+        <p>Publishers:</p>
+        {% for publisher in game_info.publishers %}
+        <p>{{ publisher }}</p>
+        {% endfor %}
+    </body>
+</html>
+"""
 
 class GameInfo(object):
     IGDB_REGION_ENUM = {
@@ -19,7 +47,7 @@ class GameInfo(object):
         8: 'World'        
     }
 
-    def __init__(self, twitch_client_id=None, twitch_client_secret=None, twitch_username=None, source_name=None, game_override=None):
+    def __init__(self, twitch_client_id=None, twitch_client_secret=None, twitch_username=None, source_name=None, game_override=None, template=None):
         self.source_name = source_name
         self.twitch_client_id = twitch_client_id
         self.twitch_client_secret = twitch_client_secret
@@ -29,6 +57,7 @@ class GameInfo(object):
         self.game_name = None
         self.game_override = game_override
         self.game_info = None
+        self.template = template
         
     def twitch_api_connect(self):
         """ authenticate against the Twitch API and set object properties """
@@ -138,9 +167,7 @@ class GameInfo(object):
             self.game_info = None
 
     def generate_html(self):
-        """ parse the template and write it to disk """
         pass
-
 
 # create local instance of GameInfo
 gi = GameInfo()
@@ -154,13 +181,31 @@ NOTE: treat your client ID and secret like you would your Twitch username and pa
 
 To customize the panel, you should become acquainted with the Jinja2 template language.  Visit https://jinja.palletsprojects.com/en/2.11.x/ for more information."""
 
+def script_defaults(settings):
+    """ Initialize default settings """
+    obs.obs_data_set_default_string(settings, "jinja2_template", default_template)
+
 def script_update(settings):
     """ Do something when the user changes the settings """
-    pass
+    gi.source_name = obs.obs_data_get_string(settings, "browser_source")
+    gi.twitch_client_id = obs.obs_data_get_string(settings, "twitch_client_id")
+    gi.twitch_client_secret = obs.obs_data_get_string(settings, "twitch_client_secret")
+    gi.twitch_username = obs.obs_data_get_string(settings, "twitch_username")
+    gi.game_override = obs.obs_data_get_string(settings, "game_override")
+    gi.template = obs.obs_data_get_string(settings, "jinja2_template")
+    #TODO: probably should do something to refresh the object here...
 
 def script_properties():
     """ Script user interface """
     props = obs.obs_properties_create()
+
+    obs.obs_properties_add_text(
+        props,
+        "twitch_username",
+        "Twitch Username",
+        obs.OBS_TEXT_DEFAULT
+    )
+
     obs.obs_properties_add_text(
         props,
         "twitch_client_id",
@@ -183,6 +228,14 @@ def script_properties():
         obs.OBS_COMBO_FORMAT_STRING
     )
 
+    p_game_override = obs.obs_properties_add_text(
+        props,
+        "game_override",
+        "IGDB Game Override Slug",
+        obs.OBS_TEXT_DEFAULT
+    )
+    obs.obs_property_set_long_description(p_game_override, "Search for a game on igdb.com, then browse to the game profile page.  Copy the \"slug\" from the URL (e.g. https://www.igdb.com/games/<slug>) and paste it here to override the game being displayed.")
+
     sources = obs.obs_enum_sources()
     if sources is not None:
         for source in sources:
@@ -203,7 +256,3 @@ def script_properties():
     )
 
     return props
-
-def script_defaults(settings):
-    """ Define the default settings for the plugin """
-    pass
