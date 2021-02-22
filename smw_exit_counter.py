@@ -16,8 +16,6 @@ class SMWCounter(object):
             obs.obs_data_release(settings)
             obs.obs_source_release(source)
         
-        
-
     def increment(self):
         if self.counter < self.counter_max:
             self.counter += 1
@@ -27,6 +25,10 @@ class SMWCounter(object):
         if self.counter > 0:
             self.counter -= 1
             self.update_counter()
+
+    def reset(self):
+        self.counter = 0
+        self.update_counter()
 
 
 class Hotkey:
@@ -68,15 +70,20 @@ class h:
 ctr = SMWCounter()
 h_increment = h()
 h_decrement = h()
+h_reset = h()
 
 def increment_callback(pressed):
     if pressed:
         ctr.increment()
 
-
 def decrement_callback(pressed):
     if pressed:
         ctr.decrement()
+
+def reset_callback(pressed):
+    if pressed:
+        ctr.reset()
+
 
 def script_update(settings):
     ctr.source = obs.obs_data_get_string(settings, "text_source")
@@ -131,7 +138,13 @@ def script_properties():
 def script_load(settings):
     h_increment.htk_copy = Hotkey(increment_callback, settings, "smw_increment")
     h_decrement.htk_copy = Hotkey(decrement_callback, settings, "smw_decrement")
+    h_reset.htk_copy = Hotkey(reset_callback, settings, "smw_reset")
 
 def script_save(settings):
     h_increment.htk_copy.save_hotkey()
     h_decrement.htk_copy.save_hotkey()
+    h_reset.htk_copy.save_hotkey()
+
+def script_defaults(settings):
+    obs.obs_data_set_int(settings, "counter_start", 0)
+    obs.obs_data_set_int(settings, "counter_max", 96)
