@@ -13,3 +13,4 @@ Future versions of OBS may changes these requirements, but for now, them's the b
 
 ## Current Scripts:
 * gameinfo.py: Uses Twitch and IGDB APIs to automatically populate a local browser source with game information, including cover image, release dates, platforms, developers, and publishers.
+* smw_exit_counter.py: Turns a "Text (GDI+)" source into a rudimentary Super Mario World exit counter

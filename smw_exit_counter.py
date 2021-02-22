@@ -1,5 +1,39 @@
 import obspython as obs
 
+#######################################################################
+# smw_exit_counter.py - turns a text source in OBS into a rudimentary
+#                       exit counter for Super Mario World.
+########################################################################
+# How to use:
+# 
+# 1. Install python 3.6.x onto the same system as your OBS installation
+# 2. Copy this script somewhere onto your computer
+# 3. Create a "Text (GDI+)" source and name it something like
+#    "SMW Counter"
+# 4. In OBS, go to "Tools" -> "Scripts"
+# 5. Under the "Python Settings" tab, make sure the Python path is set
+#    to wherever python is installed on your computer
+# 6. Under the "Scripts" tab, click on the "+" button and browse to
+#    this script
+# 7. If everything worked, you should see configuration settings on the
+#    right side of the scripts window.  Select the "Text Source" that
+#    corresponds with the source you want to use for your counter.
+# 8. Now, go to "File" -> "Settings", and under "Hotkeys", set some
+#    sensible hotkeys for:
+#      "SMW Counter: Increment"
+#      "SMW Counter: Decrement"
+#      "SMW Counter: Reset"
+#
+# Now, when you hit the hotkeys you set in step #8, the counter will
+# increment or decrement, or reset to zero.
+#
+# The default settings are stock for vanilla SMW, but you can adjust
+# them for things like romhacks that have different exit counts.
+#
+# Also, the settings should persist across 
+#
+########################################################################
+
 class SMWCounter(object):
     def __init__(self, source=None, counter_start=0, counter_max=96):
         self.source = source
@@ -44,7 +78,7 @@ class Hotkey:
         self.save_hotkey()
 
     def register_hotkey(self):
-        description = "Htk " + str(self._id)
+        description = "SMW Exit Counter: " + str(self._id)
         self.hotkey_id = obs.obs_hotkey_register_frontend(
             "htk_id" + str(self._id), description, self.callback
         )
@@ -136,9 +170,9 @@ def script_properties():
     return props
 
 def script_load(settings):
-    h_increment.htk_copy = Hotkey(increment_callback, settings, "smw_increment")
-    h_decrement.htk_copy = Hotkey(decrement_callback, settings, "smw_decrement")
-    h_reset.htk_copy = Hotkey(reset_callback, settings, "smw_reset")
+    h_increment.htk_copy = Hotkey(increment_callback, settings, "Increment")
+    h_decrement.htk_copy = Hotkey(decrement_callback, settings, "Decrement")
+    h_reset.htk_copy = Hotkey(reset_callback, settings, "Reset")
 
 def script_save(settings):
     h_increment.htk_copy.save_hotkey()
